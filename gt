@@ -1,0 +1,70 @@
+import cv2
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import load_model
+
+# تحميل نموذج التعلم العميق المدرب مسبقاً (افتراضي)
+# ستحتاج إلى نموذج مدرب على تغيير الملابس مثل GAN أو U-Net
+model = load_model('clothes_changer_model.h5')
+
+# دالة لتحميل الصورة وتحضيرها
+def preprocess_image(image_path):
+    # قراءة الصورة
+    image = cv2.imread(image_path)
+    # تغيير الحجم إلى القياس الذي يتطلبه النموذج (مثلاً 256x256)
+    image_resized = cv2.resize(image, (256, 256))
+    # تحويل القيم إلى نطاق [0, 1]
+    image_normalized = image_resized / 255.0
+    # إضافة بعد إضافي لتتناسب مع مدخلات النموذج
+    image_input = np.expand_dims(image_normalized, axis=0)
+    return image_input, image_resized
+
+# دالة لتطبيق تغيير الملابس
+def change_clothes(image_path, cloth_image_path):
+    try:
+        # تحضير الصورة الأصلية
+        input_image, original_resized = preprocess_image(image_path)
+        
+        # تحضير صورة الملابس الجديدة
+        cloth_image, _ = preprocess_image(cloth_image_path)
+        
+        # استخدام النموذج لتوليد الصورة الجديدة
+        generated_image = model.predict([input_image, cloth_image])
+        
+        # إعادة تحويل الصورة إلى الصيغة الأصلية
+        generated_image = np.squeeze(generated_image) * 255.0
+        generated_image = generated_image.astype(np.uint8)
+        
+        # حفظ الصورة الناتجة
+        cv2.imwrite('output_image.jpg', generated_image)
+        print("تم تغيير الملابس بنجاح وحفظ الصورة كـ 'output_image.jpg'")
+        
+        return generated_image
+    
+    except Exception as e:
+        print(f"حدث خطأ: {str(e)}")
+        return None
+
+# دالة لعرض النتيجة
+def display_result(original_path, result_image):
+    if result_image is not None:
+        original = cv2.imread(original_path)
+        original_resized = cv2.resize(original, (256, 256))
+        
+        # عرض الصورة الأصلية والناتجة
+        cv2.imshow('Original Image', original_resized)
+        cv2.imshow('Result Image', result_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+# استخدام البرنامج
+if __name__ == "__main__":
+    # مسارات الصور (يجب تعديلها حسب موقع ملفاتك)
+    person_image = 'person.jpg'  # صورة الشخص
+    cloth_image = 'cloth.jpg'    # صورة الملابس الجديدة
+    
+    # تنفيذ تغيير الملابس
+    result = change_clothes(person_image, cloth_image)
+    
+    # عرض النتيجة
+    display_result(person_image, result)
